@@ -188,7 +188,7 @@ externalSecrets: []
 #   - name: db-creds
 #     store: vault-cluster
 #     storeKind: ClusterSecretStore
-#     refreshInterval: 1h
+#     refreshInterval: 1m
 #     mountPath: ""
 #     asEnvVars: true
 #     data:

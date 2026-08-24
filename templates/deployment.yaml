@@ -24,9 +24,15 @@ spec:
       labels:
         {{- include "app-chart.selectorLabels" . | nindent 8 }}
       {{- $hash := include "app-chart.configHash" . }}
-      {{- if $hash }}
+      {{- $esHash := include "app-chart.externalSecretHash" . }}
+      {{- if or $hash $esHash }}
       annotations:
+        {{- if $hash }}
         appdefinition.abexamir.me/config-hash: {{ $hash }}
+        {{- end }}
+        {{- if $esHash }}
+        appdefinition.abexamir.me/external-secret-hash: {{ $esHash }}
+        {{- end }}
       {{- end }}
     spec:
       {{- $sc := .Values.securityContext }}

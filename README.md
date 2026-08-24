@@ -30,6 +30,10 @@ A few operator behaviors have no faithful equivalent in a stateless template ren
   everything on the release.
 - **`disk.protect`**: approximated with Helm's `lookup` function (only works against a live
   cluster; `helm template` with no cluster context always skips the PVC).
+- **External-secret rollout**: the operator reconciles continuously, so it rolls pods as soon
+  as ESO syncs a new value into a `spec.externalSecrets` Secret. This chart only checks (via
+  `lookup`, so also skipped by `helm template`) at render time, so the rollout only happens on
+  the next `helm upgrade` after a sync — there's no continuous loop to catch it sooner.
 - **`externalSecretsApiVersion` / `serviceMonitorApiVersion`**: the operator auto-detects the
   best API version at reconcile time; this chart pins them in `values.yaml` since Helm can't
   introspect the cluster at render time.

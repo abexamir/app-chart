@@ -304,3 +304,27 @@ version, so callers can gate on truthiness the same way).
 {{- toJson $combined | sha256sum -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+SHA-256 hash of the current .data in every Secret spec.externalSecrets produces, read live
+via `lookup` at render time. Mirrors externalSecretHash() in reconcile_deployment.go, which
+the operator recomputes on every reconcile to trigger a rollout as soon as ESO syncs a new
+value — this chart has no reconcile loop, so the same protection only takes effect on the
+next `helm upgrade` after a sync, not automatically. `lookup` returns an empty map both when
+the Secret doesn't exist yet (ESO hasn't synced) and unconditionally in `helm template`/
+`--dry-run` (no live cluster to query), so this returns "" in both cases the same way
+computeConfigHash's Go counterpart short-circuits on "nothing to hash yet".
+*/}}
+{{- define "app-chart.externalSecretHash" -}}
+{{- $fullname := include "app-chart.fullname" . -}}
+{{- $found := list -}}
+{{- range .Values.externalSecrets -}}
+{{- $secret := lookup "v1" "Secret" $.Release.Namespace (printf "%s-%s" $fullname .name) -}}
+{{- if $secret -}}
+{{- $found = append $found (dict "name" .name "data" $secret.data) -}}
+{{- end -}}
+{{- end -}}
+{{- if $found -}}
+{{- toJson $found | sha256sum -}}
+{{- end -}}
+{{- end -}}
