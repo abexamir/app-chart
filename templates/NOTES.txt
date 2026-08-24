@@ -1,0 +1,44 @@
+{{ include "app-chart.fullname" . }} has been deployed to {{ .Release.Namespace }}.
+
+{{- if .Values.paused }}
+
+paused is true: no resources were rendered by this release.
+{{- else }}
+
+{{- $ports := list }}
+{{- range .Values.containers }}
+{{- range .ports }}
+{{- if .expose }}
+{{- $ports = append $ports . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $ports }}
+
+Service: {{ include "app-chart.fullname" . }} ({{ .Values.serviceType | default "ClusterIP" }})
+{{- range $ports }}
+  - {{ .name }}: {{ .servicePort }} -> {{ .containerPort }}
+{{- end }}
+{{- else }}
+
+No ports are exposed (containers[].ports[].expose) — no Service was created.
+{{- end }}
+
+{{- if .Values.domains }}
+
+Ingress hosts:
+{{- range .Values.domains }}
+  - {{ if .tls }}https{{ else }}http{{ end }}://{{ .name }}{{ .path | default "/" }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.disk }}
+
+Disk: {{ include "app-chart.pvcName" . }} ({{ .Values.disk.sizeInGi }}Gi)
+{{- end }}
+
+{{- if and .Values.autoscaling .Values.autoscaling.enabled }}
+
+Autoscaling: {{ .Values.autoscaling.minReplicas | default 1 }}-{{ .Values.autoscaling.maxReplicas }} replicas
+{{- end }}
+{{- end }}

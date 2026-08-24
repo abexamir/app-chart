@@ -1,0 +1,48 @@
+{{- if not .Values.paused }}
+{{- $fullname := include "app-chart.fullname" . }}
+{{- $labels := dict }}
+{{- range $k, $v := (include "app-chart.labels" . | fromYaml) }}
+{{- $_ := set $labels $k $v }}
+{{- end }}
+{{- range .Values.containers }}
+{{- range .ports }}
+{{- if and .metrics .metrics.enabled }}
+{{- range $k, $v := .metrics.labels }}
+{{- $_ := set $labels $k $v }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- $endpoints := list }}
+{{- $seen := dict }}
+{{- range .Values.containers }}
+{{- range .ports }}
+{{- if and .metrics .metrics.enabled (not (hasKey $seen .name)) }}
+{{- $_ := set $seen .name true }}
+{{- $ep := dict "port" .name "path" (.metrics.path | default "/metrics") }}
+{{- if .metrics.interval }}
+{{- $_ := set $ep "interval" .metrics.interval }}
+{{- end }}
+{{- $endpoints = append $endpoints $ep }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $endpoints }}
+apiVersion: {{ .Values.serviceMonitorApiVersion }}
+kind: ServiceMonitor
+metadata:
+  name: {{ include "app-chart.serviceMonitorName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $fullname }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    {{- toYaml $endpoints | nindent 4 }}
+{{- end }}
+{{- end }}

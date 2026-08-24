@@ -1,0 +1,32 @@
+{{- if and (not .Values.paused) .Values.disk }}
+{{- $pvcName := include "app-chart.pvcName" . }}
+{{- $skip := false }}
+{{- if .Values.disk.protect }}
+{{- $existing := lookup "v1" "PersistentVolumeClaim" .Release.Namespace $pvcName }}
+{{- if not $existing }}
+{{- $skip = true }}
+{{- end }}
+{{- end }}
+{{- if not $skip }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $pvcName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "app-chart.labels" . | nindent 4 }}
+  {{- if .Values.disk.annotations }}
+  annotations:
+    {{- toYaml .Values.disk.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.disk.storageClassName }}
+  storageClassName: {{ .Values.disk.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.disk.sizeInGi }}Gi
+{{- end }}
+{{- end }}

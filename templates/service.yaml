@@ -1,0 +1,30 @@
+{{- if not .Values.paused }}
+{{- $ports := list }}
+{{- range .Values.containers }}
+{{- range .ports }}
+{{- if .expose }}
+{{- $ports = append $ports . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $ports }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "app-chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "app-chart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.serviceType | default "ClusterIP" }}
+  selector:
+    {{- include "app-chart.selectorLabels" . | nindent 4 }}
+  ports:
+    {{- range $ports }}
+    - name: {{ .name }}
+      port: {{ .servicePort }}
+      targetPort: {{ .containerPort }}
+      protocol: {{ .protocol | default "TCP" }}
+    {{- end }}
+{{- end }}
+{{- end }}

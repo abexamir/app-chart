@@ -1,0 +1,29 @@
+{{- if and (not .Values.paused) .Values.autoscaling .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "app-chart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "app-chart.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "app-chart.fullname" . }}
+  {{- if .Values.autoscaling.minReplicas }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  {{- end }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
+  {{- $metrics := list }}
+  {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
+  {{- $metrics = append $metrics (dict "type" "Resource" "resource" (dict "name" "cpu" "target" (dict "type" "Utilization" "averageUtilization" .Values.autoscaling.targetCPUUtilizationPercentage))) }}
+  {{- end }}
+  {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+  {{- $metrics = append $metrics (dict "type" "Resource" "resource" (dict "name" "memory" "target" (dict "type" "Utilization" "averageUtilization" .Values.autoscaling.targetMemoryUtilizationPercentage))) }}
+  {{- end }}
+  {{- if $metrics }}
+  metrics:
+    {{- toYaml $metrics | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,72 @@
+# Mirrors app-operator's config/samples/appdefinition_v1_stateful_app.yaml.
+initContainers:
+  - name: init-data
+    image: busybox:1.36
+    command: ["/bin/sh", "-c", "mkdir -p /data /logs"]
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "32Mi"
+
+containers:
+  - name: db
+    image: postgres:16
+    env:
+      - name: PGDATA
+        value: /data
+    ports:
+      - name: postgres
+        containerPort: 5432
+        servicePort: 5432
+        expose: true
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    readinessProbe:
+      exec:
+        command: ["pg_isready", "-U", "app"]
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      failureThreshold: 6
+    livenessProbe:
+      tcpSocket:
+        port: 5432
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+replicas: 1
+
+disk:
+  sizeInGi: 20
+  storageClassName: local-path
+  setFsGroup: true
+  partitions:
+    - mountPath: /data
+      subPath: data
+    - mountPath: /logs
+      subPath: logs
+  annotations:
+    backup.velero.io/backup-volumes: "stateful-app-disk"
+
+configMaps:
+  - name: server-config
+    mountPath: /etc/postgresql
+    data:
+      postgresql.conf: |
+        max_connections = 100
+
+secrets:
+  - name: db-creds
+    asEnvVars: true
+    data:
+      POSTGRES_PASSWORD: "changeme"
+      POSTGRES_USER: "app"
+
+securityContext:
+  fsGroup: 999

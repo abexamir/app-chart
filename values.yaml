@@ -1,0 +1,212 @@
+# Default values for app-chart.
+#
+# This chart mirrors the app-operator AppDefinition CRD (appdefinition.abexamir.me/v1)
+# field for field. Every key here has a 1:1 counterpart at the same path in an
+# AppDefinition's .spec, using the same names and defaults. See README.md for the
+# full field-mapping table and behavioral notes/divergences.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -- containers: main application containers. At least one is required.
+containers:
+  - name: app
+    image: nginx:1.25-alpine
+    # command: ["/bin/sh", "-c"]
+    # args: ["echo hello"]
+    env: []
+    # env:
+    #   - name: LOG_LEVEL
+    #     value: info
+    #   - name: SECRET_VALUE
+    #     valueFrom:
+    #       secretKeyRef:
+    #         name: my-secret
+    #         key: value
+    ports:
+      - name: http
+        containerPort: 80
+        servicePort: 80
+        protocol: TCP
+        expose: true
+        metrics:
+          enabled: false
+          path: /metrics
+          interval: ""
+          labels: {}
+    readinessProbe: {}
+    # readinessProbe:
+    #   type: httpGet
+    #   httpGet:
+    #     path: /
+    #     port: 80
+    #   initialDelaySeconds: 5
+    #   periodSeconds: 10
+    livenessProbe: {}
+    resources: {}
+    # resources:
+    #   requests:
+    #     cpu: 100m
+    #     memory: 128Mi
+    #   limits:
+    #     cpu: "1"
+    #     memory: 512Mi
+
+# -- initContainers: run to completion before main containers start.
+initContainers: []
+# initContainers:
+#   - name: migrate
+#     image: busybox:1.36
+#     command: ["/bin/sh", "-c", "echo migrate"]
+#     env: []
+#     resources: {}
+
+# -- replicas: desired pod count. Defaults to 1. Capped at 1 when disk is set.
+replicas: 1
+
+# -- domains: creates an Ingress with one rule per entry.
+domains: []
+# domains:
+#   - name: app.example.com
+#     tls: true
+#     redirect_tls: true
+#     certIssuer: letsencrypt-prod
+#     path: /
+#     annotations: {}
+#     portName: http
+#     secretName: ""   # defaults to "<fullname>-<sanitized-domain>-tls"
+
+# -- disk: provisions a persistent volume. Makes the app stateful (Recreate strategy,
+# max one replica, no autoscaling).
+disk: {}
+# disk:
+#   sizeInGi: 10
+#   storageClassName: ""
+#   setFsGroup: false
+#   protect: false
+#   annotations: {}
+#   partitions:
+#     - subPath: data
+#       mountPath: /data
+
+# -- loggingConfig: declares log shipping intent. Not acted on by this chart —
+# log shipping is handled at the cluster layer, matching the operator's own behavior.
+loggingConfig: {}
+# loggingConfig:
+#   stdout:
+#     enabled: true
+#     format: json
+#   stderr:
+#     enabled: true
+#     format: json
+#   files:
+#     - path: /var/log/app/access.log
+#       format: json
+#       multilinePattern: ""
+
+# -- lifecycle: postStart/preStop hooks, applied to the first container only.
+lifecycle: {}
+# lifecycle:
+#   postStart:
+#     exec:
+#       command: ["/bin/sh", "-c", "echo starting"]
+#   preStop:
+#     exec:
+#       command: ["/bin/sh", "-c", "sleep 5"]
+
+# -- securityContext: pod-level security context applied to every container.
+securityContext: {}
+# securityContext:
+#   runAsNonRoot: true
+#   runAsUser: 1000
+#   runAsGroup: 1000
+#   fsGroup: 1000
+
+# -- serviceAccountName: sets the pod's ServiceAccount. Defaults to the namespace's
+# "default" ServiceAccount when unset.
+serviceAccountName: ""
+
+# -- serviceType: Kubernetes Service type. Defaults to ClusterIP.
+serviceType: ClusterIP
+
+# -- ingressClass: IngressClass name for all domain rules.
+ingressClass: ""
+
+# -- ingressAnnotations: merged into the Ingress metadata.
+ingressAnnotations: {}
+
+# -- nodeSelector: constrains pods to nodes with matching labels.
+nodeSelector: {}
+
+# -- tolerations: allow scheduling onto tainted nodes.
+tolerations: []
+
+# -- affinity: pod affinity, anti-affinity, and node affinity rules.
+affinity: {}
+
+# -- paused: when true, this chart renders no workload/networking resources at all
+# (see README.md — Helm has no equivalent of "freeze reconciliation in place").
+paused: false
+
+# -- autoscaling: configures an HPA for the Deployment. Cannot be combined with disk.
+autoscaling:
+  enabled: false
+  minReplicas: null
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: null
+  targetMemoryUtilizationPercentage: null
+
+# -- imagePullSecrets: references Secrets used to pull private images.
+imagePullSecrets: []
+# imagePullSecrets:
+#   - name: regcred
+
+# -- configMaps: creates chart-owned ConfigMaps mounted in all containers.
+configMaps: []
+# configMaps:
+#   - name: app-config
+#     mountPath: /etc/config
+#     data:
+#       config.yaml: |
+#         log_level: info
+
+# -- secrets: creates inline or references pre-existing Secrets. `data` and `secretRef`
+# are mutually exclusive.
+secrets: []
+# secrets:
+#   - name: credentials
+#     mountPath: ""
+#     asEnvVars: true
+#     data:
+#       API_KEY: changeme
+#     secretRef: ""
+
+# -- externalSecrets: creates ExternalSecret resources synced by external-secrets.io.
+# Requires the ExternalSecret CRD to be installed in the cluster.
+externalSecrets: []
+# externalSecrets:
+#   - name: db-creds
+#     store: vault-cluster
+#     storeKind: ClusterSecretStore
+#     refreshInterval: 1h
+#     mountPath: ""
+#     asEnvVars: true
+#     data:
+#       - secretKey: DB_PASSWORD
+#         remoteRef:
+#           key: secret/data/myapp/db
+#           property: password
+#           version: ""
+#     dataFrom: []
+#     #  - key: secret/data/myapp/tls
+#     #    version: ""
+
+# -- externalSecretsApiVersion: ExternalSecret API group/version to render. The operator
+# auto-detects the newest version the cluster's CRDs serve (v1 -> v1beta1 -> v1alpha1);
+# Helm cannot introspect the cluster at template time, so pin this explicitly if your
+# cluster only serves an older ExternalSecret API version.
+externalSecretsApiVersion: external-secrets.io/v1
+
+# -- serviceMonitorApiVersion: ServiceMonitor API group/version to render. Requires the
+# prometheus-operator CRDs to be installed in the cluster.
+serviceMonitorApiVersion: monitoring.coreos.com/v1

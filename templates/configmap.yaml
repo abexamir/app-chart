@@ -1,0 +1,15 @@
+{{- if not .Values.paused }}
+{{- $fullname := include "app-chart.fullname" . }}
+{{- range .Values.configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-{{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "app-chart.labels" $ | nindent 4 }}
+data:
+  {{- toYaml .data | nindent 2 }}
+{{- end }}
+{{- end }}

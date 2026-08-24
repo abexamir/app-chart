@@ -1,0 +1,10 @@
+apiVersion: v2
+name: app-chart
+description: General-purpose application Helm chart with 1:1 field parity with the app-operator AppDefinition CRD
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - application
+  - deployment
+  - app-operator
