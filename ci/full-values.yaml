@@ -77,6 +77,11 @@ domains:
     portName: grpc
     annotations:
       nginx.ingress.kubernetes.io/rewrite-target: /
+  # No secretName: exercises the auto-generated tlsSecretName() path.
+  - name: admin.example.com
+    path: /
+    tls: true
+    portName: http
 
 ingressClass: nginx
 ingressAnnotations:

@@ -46,7 +46,7 @@ DNS-1123-ish sanitize: lowercase, replace anything outside [a-z0-9-] with '-', t
 leading/trailing '-'. Mirrors sanitizeDNS() in helpers.go.
 */}}
 {{- define "app-chart.sanitizeDNS" -}}
-{{- . | lower | regexReplaceAll "[^a-z0-9-]" "-" | trimAll "-" -}}
+{{- regexReplaceAll "[^a-z0-9-]" (. | lower) "-" | trimAll "-" -}}
 {{- end -}}
 
 {{/*
