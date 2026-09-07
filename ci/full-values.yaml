@@ -82,7 +82,53 @@ domains:
     path: /
     tls: true
     portName: http
+    middlewares:
+      ipWhiteList:
+        sourceRange:
+          - 10.0.0.0/8
+          - 192.168.1.0/24
+        ipStrategy:
+          depth: 1
+          excludedIPs:
+            - 127.0.0.1/32
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+      forwardAuth:
+        address: https://auth.example.com/verify
+        trustForwardHeader: true
+        authResponseHeaders:
+          - X-Forwarded-User
+        authRequestHeaders:
+          - Cookie
+        tlsInsecureSkipVerify: false
+      basicAuth:
+        secretName: admin-basic-auth
+        realm: admin-area
+        removeHeader: true
+        headerField: X-Authenticated-User
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: https
+        customResponseHeaders:
+          X-Robots-Tag: "noindex,nofollow,nosnippet"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        forceSTSHeader: true
+        frameDeny: true
+        contentTypeNosniff: true
+        accessControlAllowOriginList:
+          - https://app.example.com
+        accessControlAllowMethods:
+          - GET
+          - POST
+        accessControlAllowHeaders:
+          - Authorization
+        accessControlAllowCredentials: true
 
+middlewareApiVersion: traefik.io/v1alpha1
 ingressClass: nginx
 ingressAnnotations:
   nginx.ingress.kubernetes.io/proxy-body-size: "10m"

@@ -1,64 +1,68 @@
-{{- if and (not .Values.paused) .Values.domains }}
+{{/*
+One Ingress per domain (not one shared Ingress with a rule per domain) — mirrors
+reconcileIngress()/domainIngressName(). Required because Traefik's
+traefik.ingress.kubernetes.io/router.middlewares annotation applies to every rule in an
+Ingress object, so a domain's middlewares (see templates/middleware.yaml) can only be
+scoped to that domain alone when it has its own Ingress.
+*/}}
+{{- if not .Values.paused }}
+{{- $root := . }}
 {{- $fullname := include "app-chart.fullname" . }}
+{{- range .Values.domains }}
+{{- $domain := . }}
+---
 {{- $annotations := dict }}
-{{- with .Values.ingressAnnotations }}
-{{- range $k, $v := . }}
+{{- range $k, $v := $root.Values.ingressAnnotations }}
 {{- $_ := set $annotations $k $v }}
 {{- end }}
+{{- range $k, $v := $domain.annotations }}
+{{- $_ := set $annotations $k $v }}
 {{- end }}
-{{- range .Values.domains }}
-{{- if and .tls .redirect_tls }}
+{{- if and $domain.tls $domain.redirect_tls }}
 {{- $_ := set $annotations "nginx.ingress.kubernetes.io/force-ssl-redirect" "true" }}
 {{- end }}
-{{- range $k, $v := .annotations }}
-{{- $_ := set $annotations $k $v }}
+{{- if and $domain.tls $domain.certIssuer }}
+{{- $_ := set $annotations "cert-manager.io/cluster-issuer" $domain.certIssuer }}
 {{- end }}
+{{- $kinds := include "app-chart.enabledMiddlewareKinds" $domain | fromYamlArray }}
+{{- if $kinds }}
+{{- $refs := list }}
+{{- range $kinds }}
+{{- $refs = append $refs (printf "%s-%s@kubernetescrd" $root.Release.Namespace (include "app-chart.middlewareName" (dict "fullname" $fullname "domain" $domain.name "kind" .))) }}
 {{- end }}
-{{- range .Values.domains }}
-{{- if and .tls .certIssuer }}
-{{- $_ := set $annotations "cert-manager.io/cluster-issuer" .certIssuer }}
-{{- end }}
+{{- $_ := set $annotations "traefik.ingress.kubernetes.io/router.middlewares" (join "," $refs) }}
 {{- end }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ $fullname }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ include "app-chart.domainIngressName" (dict "fullname" $fullname "domain" $domain.name) }}
+  namespace: {{ $root.Release.Namespace }}
   labels:
-    {{- include "app-chart.labels" . | nindent 4 }}
+    {{- include "app-chart.labels" $root | nindent 4 }}
   {{- if $annotations }}
   annotations:
     {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
-  {{- if .Values.ingressClass }}
-  ingressClassName: {{ .Values.ingressClass }}
+  {{- if $root.Values.ingressClass }}
+  ingressClassName: {{ $root.Values.ingressClass }}
   {{- end }}
-  {{- $tlsDomains := list }}
-  {{- range .Values.domains }}
-  {{- if .tls }}
-  {{- $tlsDomains = append $tlsDomains . }}
-  {{- end }}
-  {{- end }}
-  {{- if $tlsDomains }}
+  {{- if $domain.tls }}
   tls:
-    {{- range $tlsDomains }}
     - hosts:
-        - {{ .name }}
-      secretName: {{ .secretName | default (include "app-chart.tlsSecretName" (dict "fullname" $fullname "domain" .name)) }}
-    {{- end }}
+        - {{ $domain.name }}
+      secretName: {{ $domain.secretName | default (include "app-chart.tlsSecretName" (dict "fullname" $fullname "domain" $domain.name)) }}
   {{- end }}
   rules:
-    {{- range .Values.domains }}
-    - host: {{ .name }}
+    - host: {{ $domain.name }}
       http:
         paths:
-          - path: {{ .path | default "/" }}
+          - path: {{ $domain.path | default "/" }}
             pathType: Prefix
             backend:
               service:
                 name: {{ $fullname }}
                 port:
-                  name: {{ .portName | default "http" }}
-    {{- end }}
+                  name: {{ $domain.portName | default "http" }}
+{{- end }}
 {{- end }}

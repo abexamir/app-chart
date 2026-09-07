@@ -1,0 +1,35 @@
+{{/*
+One Traefik Middleware CR per domain per enabled kind (not one CR holding multiple
+middleware types) — mirrors reconcileMiddlewares()/buildMiddlewareSpec() in
+reconcile_middleware.go. Kinds are chained onto that domain's Ingress via the
+traefik.ingress.kubernetes.io/router.middlewares annotation in templates/ingress.yaml, in
+the fixed order ipallow -> ratelimit -> forwardauth -> basicauth -> headers: IP allow-list
+and rate limit filter cheaply before the two auth mechanisms run, headers last since it
+only decorates the response rather than gating the request.
+
+Unlike the operator's MiddlewaresReady status condition, this chart cannot introspect the
+cluster at render time to skip rendering when the Traefik Middleware CRD isn't installed —
+it always renders these CRs when domains[].middlewares is set. See README.md's Divergences
+section.
+*/}}
+{{- if not .Values.paused }}
+{{- $root := . }}
+{{- $fullname := include "app-chart.fullname" . }}
+{{- range .Values.domains }}
+{{- $domain := . }}
+{{- $kinds := include "app-chart.enabledMiddlewareKinds" $domain | fromYamlArray }}
+{{- range $kinds }}
+{{- $kind := . }}
+---
+apiVersion: {{ $root.Values.middlewareApiVersion }}
+kind: Middleware
+metadata:
+  name: {{ include "app-chart.middlewareName" (dict "fullname" $fullname "domain" $domain.name "kind" $kind) }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "app-chart.labels" $root | nindent 4 }}
+spec:
+  {{- include "app-chart.middlewareSpec" (dict "root" $root "domain" $domain "kind" $kind) | nindent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

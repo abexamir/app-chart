@@ -1,6 +1,7 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to coding agents (Claude Code, Codex, etc.) when working with code
+in this repository.
 
 ## What this is
 
@@ -26,7 +27,8 @@ When you change one repo, change the other in the same session/PR:
   |---------------------------------|---------------------------------------------------------|
   | `reconcile_deployment.go`       | `templates/deployment.yaml` + container/probe/volume helpers |
   | `reconcile_service.go`          | `templates/service.yaml`                                |
-  | `reconcile_ingress.go`          | `templates/ingress.yaml`                                |
+  | `reconcile_ingress.go`          | `templates/ingress.yaml` — one Ingress **per domain** (not one shared Ingress with a rule per domain), required for per-domain `router.middlewares` scoping |
+  | `reconcile_middleware.go`       | `templates/middleware.yaml` — one Traefik `Middleware` CR per domain per enabled kind |
   | `reconcile_pvc.go`              | `templates/pvc.yaml`                                    |
   | `reconcile_hpa.go`              | `templates/hpa.yaml`                                    |
   | `reconcile_configmaps.go`       | `templates/configmap.yaml`                               |
@@ -57,3 +59,28 @@ helm lint .
 helm template x . -f ci/full-values.yaml
 helm template x . -f ci/stateful-values.yaml
 ```
+
+## Releasing
+
+This chart isn't tied to any one Helm repository — release the package wherever your
+consumers pull from. General steps:
+
+1. Bump `version` in `Chart.yaml` (semver, independent of `appVersion`): patch for
+   template-only fixes, minor for new `values.yaml` fields, major for a breaking change to an
+   existing field's shape or default. Bump `appVersion` too if it tracks a new app-operator
+   release.
+2. `helm lint .` and validate against a real cluster context: `helm template x . -f
+   ci/full-values.yaml | kubectl apply --dry-run=client -f -`.
+3. `git tag vX.Y.Z && git push --tags`.
+4. `helm package .` — produces `app-chart-X.Y.Z.tgz`.
+5. Push the package to your Helm repository. The exact command depends on what the repo is:
+   - **OCI registry**: `helm push app-chart-X.Y.Z.tgz oci://<registry>/<path>`.
+   - **ChartMuseum-API repo**: `helm cm-push` (helm-push plugin) or `helm push` if it's an OCI
+     front for the same store.
+   - **Nexus-style hosted repo** (no ChartMuseum API — a raw `PUT` with the filename in the
+     URL): `curl -u <user>:<password> --upload-file app-chart-X.Y.Z.tgz
+     <repo-url>/app-chart-X.Y.Z.tgz`.
+
+   Never overwrite an already-published version — bump first. Hosted repos with `writePolicy:
+   ALLOW` (Nexus) will silently accept the overwrite, breaking anyone already pinned to that
+   version.

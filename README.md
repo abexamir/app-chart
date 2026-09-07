@@ -9,8 +9,9 @@ in `AppDefinitionSpec`. If you know how to write an `AppDefinition`, you know ho
 this chart's values — copy a `spec:` body into `values.yaml` almost verbatim.
 
 This chart renders native Kubernetes resources directly (Deployment, Service, Ingress, PVC,
-HPA, ConfigMap, Secret, ExternalSecret, ServiceMonitor) — no controller, no CRD. Use this for
-GitOps-native deployment; use app-operator for a live-reconciling control plane with a UI.
+HPA, ConfigMap, Secret, ExternalSecret, ServiceMonitor, Traefik Middleware) — no controller,
+no CRD. Use this for GitOps-native deployment; use app-operator for a live-reconciling
+control plane with a UI.
 
 ## Install
 
@@ -20,6 +21,10 @@ helm install my-app . -f my-values.yaml
 
 See `values.yaml` for the full field reference and `ci/*.yaml` for working examples covering
 every field.
+
+## Releasing
+
+See `AGENTS.md` § "Releasing" for the version-bump/package/publish steps.
 
 ## Divergences from the operator
 
@@ -34,10 +39,15 @@ A few operator behaviors have no faithful equivalent in a stateless template ren
   as ESO syncs a new value into a `spec.externalSecrets` Secret. This chart only checks (via
   `lookup`, so also skipped by `helm template`) at render time, so the rollout only happens on
   the next `helm upgrade` after a sync — there's no continuous loop to catch it sooner.
-- **`externalSecretsApiVersion` / `serviceMonitorApiVersion`**: the operator auto-detects the
-  best API version at reconcile time; this chart pins them in `values.yaml` since Helm can't
-  introspect the cluster at render time.
+- **`externalSecretsApiVersion` / `serviceMonitorApiVersion` / `middlewareApiVersion`**: the
+  operator auto-detects the best API version/group at reconcile time; this chart pins them in
+  `values.yaml` since Helm can't introspect the cluster at render time.
+- **`domains[].middlewares`**: the operator's `MiddlewaresReady` status condition reports
+  when the Traefik Middleware CRD isn't installed and skips rendering. This chart has no such
+  introspection — it always renders the configured `Middleware` CRs, so an app with
+  `domains[].middlewares` set on a cluster without Traefik will have `Middleware` objects sit
+  unconsumed (harmless, but `kubectl apply` needs the CRD to exist first).
 - **Default SecretStore auto-provisioning**: cluster-specific infra bootstrapping the
   operator does outside the `AppDefinitionSpec` — not replicated here.
 
-See `CLAUDE.md` for the field-parity contract this chart maintains with app-operator.
+See `AGENTS.md` for the field-parity contract this chart maintains with app-operator.

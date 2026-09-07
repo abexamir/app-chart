@@ -58,6 +58,120 @@ Call with (dict "fullname" ... "domain" ...).
 {{- end -}}
 
 {{/*
+Per-domain Ingress name. Mirrors domainIngressName() — one Ingress is rendered per domain
+(rather than one shared Ingress with a rule per domain) so that Traefik's
+router.middlewares annotation, which applies to every rule in an Ingress object, can scope
+a domain's middlewares to that domain alone. Call with (dict "fullname" ... "domain" ...).
+*/}}
+{{- define "app-chart.domainIngressName" -}}
+{{- printf "%s-%s" .fullname (include "app-chart.sanitizeDNS" .domain) -}}
+{{- end -}}
+
+{{/*
+Per-domain, per-kind Traefik Middleware name. Mirrors middlewareName(). kind is one of
+ipallow, ratelimit, forwardauth, basicauth, headers. Call with
+(dict "fullname" ... "domain" ... "kind" ...).
+*/}}
+{{- define "app-chart.middlewareName" -}}
+{{- printf "%s-%s-%s" .fullname (include "app-chart.sanitizeDNS" .domain) .kind -}}
+{{- end -}}
+
+{{/*
+IP allow-list middleware spec key for the pinned middlewareApiVersion. Mirrors the
+operator's middlewareAPICandidates ipListKey selection: the current traefik.io group uses
+the non-deprecated "ipAllowList" field; the legacy traefik.containo.us group (Traefik v2,
+removed in v3) only understands "ipWhiteList".
+*/}}
+{{- define "app-chart.ipListKey" -}}
+{{- if eq .Values.middlewareApiVersion "traefik.containo.us/v1alpha1" -}}
+{{- print "ipWhiteList" -}}
+{{- else -}}
+{{- print "ipAllowList" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Ordered list of enabled middleware kinds for a domain. Mirrors enabledMiddlewareKinds():
+ipallow and ratelimit filter cheaply before the two auth mechanisms run, headers last since
+it only decorates the response rather than gating the request. Call with the domain value.
+*/}}
+{{- define "app-chart.enabledMiddlewareKinds" -}}
+{{- $domain := . -}}
+{{- $kinds := list -}}
+{{- if $domain.middlewares -}}
+{{- if $domain.middlewares.ipWhiteList -}}{{- $kinds = append $kinds "ipallow" -}}{{- end -}}
+{{- if $domain.middlewares.rateLimit -}}{{- $kinds = append $kinds "ratelimit" -}}{{- end -}}
+{{- if $domain.middlewares.forwardAuth -}}{{- $kinds = append $kinds "forwardauth" -}}{{- end -}}
+{{- if $domain.middlewares.basicAuth -}}{{- $kinds = append $kinds "basicauth" -}}{{- end -}}
+{{- if $domain.middlewares.headers -}}{{- $kinds = append $kinds "headers" -}}{{- end -}}
+{{- end -}}
+{{- toYaml $kinds -}}
+{{- end -}}
+
+{{/*
+Renders the Traefik-schema "spec" body for one middleware kind on a domain, as YAML.
+Mirrors buildMiddlewareSpec() and its per-kind buildXSpec() helpers in
+reconcile_middleware.go. Call with (dict "root" $ "domain" ... "kind" ...) — root is needed
+to resolve .Values.middlewareApiVersion for the ipallow kind's spec key.
+*/}}
+{{- define "app-chart.middlewareSpec" -}}
+{{- $root := .root -}}
+{{- $domain := .domain -}}
+{{- $kind := .kind -}}
+{{- $mw := $domain.middlewares -}}
+{{- $spec := dict -}}
+{{- if eq $kind "ipallow" -}}
+{{- $ipw := $mw.ipWhiteList -}}
+{{- $body := dict "sourceRange" $ipw.sourceRange -}}
+{{- if $ipw.ipStrategy -}}
+{{- $strategy := dict -}}
+{{- if $ipw.ipStrategy.depth -}}{{- $_ := set $strategy "depth" $ipw.ipStrategy.depth -}}{{- end -}}
+{{- if $ipw.ipStrategy.excludedIPs -}}{{- $_ := set $strategy "excludedIPs" $ipw.ipStrategy.excludedIPs -}}{{- end -}}
+{{- if $strategy -}}{{- $_ := set $body "ipStrategy" $strategy -}}{{- end -}}
+{{- end -}}
+{{- $_ := set $spec (include "app-chart.ipListKey" $root) $body -}}
+{{- else if eq $kind "ratelimit" -}}
+{{- $rl := $mw.rateLimit -}}
+{{- $body := dict "average" $rl.average -}}
+{{- if $rl.burst -}}{{- $_ := set $body "burst" $rl.burst -}}{{- end -}}
+{{- if $rl.period -}}{{- $_ := set $body "period" $rl.period -}}{{- end -}}
+{{- $_ := set $spec "rateLimit" $body -}}
+{{- else if eq $kind "forwardauth" -}}
+{{- $fa := $mw.forwardAuth -}}
+{{- $body := dict "address" $fa.address -}}
+{{- if $fa.trustForwardHeader -}}{{- $_ := set $body "trustForwardHeader" true -}}{{- end -}}
+{{- if $fa.authResponseHeaders -}}{{- $_ := set $body "authResponseHeaders" $fa.authResponseHeaders -}}{{- end -}}
+{{- if $fa.authRequestHeaders -}}{{- $_ := set $body "authRequestHeaders" $fa.authRequestHeaders -}}{{- end -}}
+{{- if $fa.tlsInsecureSkipVerify -}}{{- $_ := set $body "tls" (dict "insecureSkipVerify" true) -}}{{- end -}}
+{{- $_ := set $spec "forwardAuth" $body -}}
+{{- else if eq $kind "basicauth" -}}
+{{- $ba := $mw.basicAuth -}}
+{{- $body := dict "secret" $ba.secretName -}}
+{{- if $ba.realm -}}{{- $_ := set $body "realm" $ba.realm -}}{{- end -}}
+{{- if $ba.removeHeader -}}{{- $_ := set $body "removeHeader" true -}}{{- end -}}
+{{- if $ba.headerField -}}{{- $_ := set $body "headerField" $ba.headerField -}}{{- end -}}
+{{- $_ := set $spec "basicAuth" $body -}}
+{{- else if eq $kind "headers" -}}
+{{- $h := $mw.headers -}}
+{{- $body := dict -}}
+{{- if $h.customRequestHeaders -}}{{- $_ := set $body "customRequestHeaders" $h.customRequestHeaders -}}{{- end -}}
+{{- if $h.customResponseHeaders -}}{{- $_ := set $body "customResponseHeaders" $h.customResponseHeaders -}}{{- end -}}
+{{- if $h.stsSeconds -}}{{- $_ := set $body "stsSeconds" $h.stsSeconds -}}{{- end -}}
+{{- if $h.stsIncludeSubdomains -}}{{- $_ := set $body "stsIncludeSubdomains" true -}}{{- end -}}
+{{- if $h.stsPreload -}}{{- $_ := set $body "stsPreload" true -}}{{- end -}}
+{{- if $h.forceSTSHeader -}}{{- $_ := set $body "forceSTSHeader" true -}}{{- end -}}
+{{- if $h.frameDeny -}}{{- $_ := set $body "frameDeny" true -}}{{- end -}}
+{{- if $h.contentTypeNosniff -}}{{- $_ := set $body "contentTypeNosniff" true -}}{{- end -}}
+{{- if $h.accessControlAllowOriginList -}}{{- $_ := set $body "accessControlAllowOriginList" $h.accessControlAllowOriginList -}}{{- end -}}
+{{- if $h.accessControlAllowMethods -}}{{- $_ := set $body "accessControlAllowMethods" $h.accessControlAllowMethods -}}{{- end -}}
+{{- if $h.accessControlAllowHeaders -}}{{- $_ := set $body "accessControlAllowHeaders" $h.accessControlAllowHeaders -}}{{- end -}}
+{{- if $h.accessControlAllowCredentials -}}{{- $_ := set $body "accessControlAllowCredentials" true -}}{{- end -}}
+{{- $_ := set $spec "headers" $body -}}
+{{- end -}}
+{{- toYaml $spec -}}
+{{- end -}}
+
+{{/*
 Resolved Secret name for a secrets[] entry: secretRef if set, else "<fullname>-<name>".
 Mirrors resolvedSecretName(). Call with (dict "fullname" ... "secret" ...).
 */}}
