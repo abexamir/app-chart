@@ -39,6 +39,6 @@ Disk: {{ include "app-chart.pvcName" . }} ({{ .Values.disk.sizeInGi }}Gi)
 
 {{- if and .Values.autoscaling .Values.autoscaling.enabled }}
 
-Autoscaling: {{ .Values.autoscaling.minReplicas | default 1 }}-{{ .Values.autoscaling.maxReplicas }} replicas
+Autoscaling: {{ .Values.autoscaling.minReplicas | default (min (.Values.replicas | default 1) .Values.autoscaling.maxReplicas) }}-{{ .Values.autoscaling.maxReplicas }} replicas
 {{- end }}
 {{- end }}

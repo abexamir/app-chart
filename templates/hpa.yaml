@@ -11,9 +11,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "app-chart.fullname" . }}
-  {{- if .Values.autoscaling.minReplicas }}
-  minReplicas: {{ .Values.autoscaling.minReplicas }}
-  {{- end }}
+  {{- /* Defaults to .Values.replicas (capped at maxReplicas), mirroring the operator's hpaMinReplicas. */}}
+  minReplicas: {{ .Values.autoscaling.minReplicas | default (min (.Values.replicas | default 1) .Values.autoscaling.maxReplicas) }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   {{- $metrics := list }}
   {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
