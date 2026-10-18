@@ -228,6 +228,17 @@ deployment.yaml, which every install renders.
   {{- fail (printf "externalSecrets[%s]: at least one of data or dataFrom must be set" .name) -}}
   {{- end -}}
 {{- end -}}
+{{- with .Values.secretStore -}}
+  {{- if not .name -}}
+  {{- fail "secretStore.name is required" -}}
+  {{- end -}}
+  {{- if not (regexMatch "^https?://" (dig "vault" "server" "" .)) -}}
+  {{- fail "secretStore.vault.server is required and must start with http:// or https://" -}}
+  {{- end -}}
+  {{- if not (has (.scope | default "Namespace") (list "Namespace" "App")) -}}
+  {{- fail "secretStore.scope must be Namespace or App" -}}
+  {{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/*

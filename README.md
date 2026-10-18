@@ -47,7 +47,9 @@ A few operator behaviors have no faithful equivalent in a stateless template ren
   introspection — it always renders the configured `Middleware` CRs, so an app with
   `domains[].middlewares` set on a cluster without Traefik will have `Middleware` objects sit
   unconsumed (harmless, but `kubectl apply` needs the CRD to exist first).
-- **Default SecretStore auto-provisioning**: cluster-specific infra bootstrapping the
-  operator does outside the `AppDefinitionSpec` — not replicated here.
+- **`secretStore`**: the operator get-or-creates the store and its ServiceAccount. This chart
+  uses `lookup` to skip objects that exist and belong to another release (`helm template`
+  always renders them). Namespace-scoped objects carry `helm.sh/resource-policy: keep` so
+  uninstalling one release doesn't delete a store other apps share.
 
 See `AGENTS.md` for the field-parity contract this chart maintains with app-operator.

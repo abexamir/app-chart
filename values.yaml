@@ -246,6 +246,25 @@ externalSecrets: []
 #     #  - key: secret/data/myapp/tls
 #     #    version: ""
 
+# -- secretStore: provisions a Vault SecretStore, plus the ServiceAccount it authenticates
+# as, for externalSecrets entries to reference with storeKind: SecretStore. Optional:
+# externalSecrets can reference any existing SecretStore or ClusterSecretStore instead.
+# scope: Namespace (default) shares a ServiceAccount named after the namespace; App uses
+# one named after this app. An existing object not owned by this release is left alone.
+secretStore: null
+# secretStore:
+#   name: vault
+#   scope: Namespace
+#   vault:
+#     server: https://vault.example.com
+#     path: secret
+#     version: v2
+#     authMountPath: kubernetes
+#     role: ""          # default "<namespace>-<serviceAccount>"
+
+# -- secretStoreApiVersion: SecretStore API group/version to render for secretStore.
+secretStoreApiVersion: external-secrets.io/v1
+
 # -- externalSecretsApiVersion: ExternalSecret API group/version to render. The operator
 # auto-detects the newest version the cluster's CRDs serve (v1 -> v1beta1 -> v1alpha1);
 # Helm cannot introspect the cluster at template time, so pin this explicitly if your

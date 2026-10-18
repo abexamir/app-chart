@@ -34,10 +34,11 @@ When you change one repo, change the other in the same session/PR:
   | `reconcile_configmaps.go`       | `templates/configmap.yaml`                               |
   | `reconcile_secrets.go`          | `templates/secret.yaml`                                  |
   | `reconcile_externalsecrets.go`  | `templates/externalsecret.yaml`                          |
+  | `reconcile_secretstore.go`      | `templates/secretstore.yaml`                             |
   | `reconcile_servicemonitor.go`   | `templates/servicemonitor.yaml`                          |
   | `helpers.go` (naming funcs)     | matching named templates in `_helpers.tpl`               |
 
-  `reconcile_defaultsecretstore.go` and `reconcile_status.go` have no counterpart — see
+  `reconcile_status.go` has no counterpart — see
   README.md's "Divergences" section for why.
 
 ## Template style

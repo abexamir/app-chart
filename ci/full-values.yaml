@@ -152,7 +152,20 @@ secrets:
     mountPath: /etc/preexisting
     secretRef: some-existing-secret
 
+secretStore:
+  name: vault
+  scope: App
+  vault:
+    server: https://vault.example.com
+    authMountPath: kubernetes-prod
+
 externalSecrets:
+  - name: vault-creds
+    store: vault
+    storeKind: SecretStore
+    asEnvVars: true
+    dataFrom:
+      - key: default/x
   - name: db-creds
     store: vault-cluster
     storeKind: ClusterSecretStore
