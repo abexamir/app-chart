@@ -64,3 +64,9 @@ it retains Traefik's default. Compression follows headers in the middleware chai
 Explicit middleware references in domain annotations (or the global `ingressAnnotations`
 fallback) run before native middleware. A domain annotation replaces the global chain for that
 domain. References are trimmed and deduplicated while preserving their first occurrence.
+
+### Explicit scheme redirects
+
+`domains[].middlewares.redirectScheme` supports redirects on domains with `tls: false`.
+Set required `scheme` (for example `https`), optional `permanent` (default `false`) and optional
+`port` as a quoted string. It is first in the native middleware chain, before compression.

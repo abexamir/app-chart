@@ -99,6 +99,7 @@ it only decorates the response, then compress. Call with the domain value.
 {{- $domain := . -}}
 {{- $kinds := list -}}
 {{- if $domain.middlewares -}}
+{{- if $domain.middlewares.redirectScheme -}}{{- $kinds = append $kinds "redirectscheme" -}}{{- end -}}
 {{- if $domain.middlewares.ipWhiteList -}}{{- $kinds = append $kinds "ipallow" -}}{{- end -}}
 {{- if $domain.middlewares.rateLimit -}}{{- $kinds = append $kinds "ratelimit" -}}{{- end -}}
 {{- if $domain.middlewares.forwardAuth -}}{{- $kinds = append $kinds "forwardauth" -}}{{- end -}}
@@ -121,7 +122,12 @@ to resolve .Values.middlewareApiVersion for the ipallow kind's spec key.
 {{- $kind := .kind -}}
 {{- $mw := $domain.middlewares -}}
 {{- $spec := dict -}}
-{{- if eq $kind "ipallow" -}}
+{{- if eq $kind "redirectscheme" -}}
+{{- $redirect := $mw.redirectScheme -}}
+{{- $body := dict "scheme" $redirect.scheme "permanent" ($redirect.permanent | default false) -}}
+{{- if $redirect.port -}}{{- $_ := set $body "port" $redirect.port -}}{{- end -}}
+{{- $_ := set $spec "redirectScheme" $body -}}
+{{- else if eq $kind "ipallow" -}}
 {{- $ipw := $mw.ipWhiteList -}}
 {{- $body := dict "sourceRange" $ipw.sourceRange -}}
 {{- if $ipw.ipStrategy -}}
@@ -212,6 +218,16 @@ structural invariants enforced by the Go API types. Rendered (and thus evaluated
 deployment.yaml, which every install renders.
 */}}
 {{- define "app-chart.validate" -}}
+{{- range .Values.domains -}}
+{{- if and .middlewares (hasKey .middlewares "redirectScheme") (ne .middlewares.redirectScheme nil) -}}
+{{- if not .middlewares.redirectScheme.scheme -}}
+{{- fail "redirectScheme.scheme is required" -}}
+{{- end -}}
+{{- if and (hasKey .middlewares.redirectScheme "port") (not (kindIs "string" .middlewares.redirectScheme.port)) -}}
+{{- fail "redirectScheme.port must be a string" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- range .Values.domains -}}
 {{- if and .middlewares (hasKey .middlewares "compress") (ne .middlewares.compress nil) -}}
 {{- $compress := .middlewares.compress -}}
