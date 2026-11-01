@@ -27,8 +27,20 @@ scoped to that domain alone when it has its own Ingress.
 {{- $kinds := include "app-chart.enabledMiddlewareKinds" $domain | fromYamlArray }}
 {{- if $kinds }}
 {{- $refs := list }}
+{{- $seen := dict }}
+{{- range splitList "," (get $annotations "traefik.ingress.kubernetes.io/router.middlewares" | default "") }}
+{{- $ref := trim . }}
+{{- if and $ref (not (hasKey $seen $ref)) }}
+{{- $refs = append $refs $ref }}
+{{- $_ := set $seen $ref true }}
+{{- end }}
+{{- end }}
 {{- range $kinds }}
-{{- $refs = append $refs (printf "%s-%s@kubernetescrd" $root.Release.Namespace (include "app-chart.middlewareName" (dict "fullname" $fullname "domain" $domain.name "kind" .))) }}
+{{- $ref := printf "%s-%s@kubernetescrd" $root.Release.Namespace (include "app-chart.middlewareName" (dict "fullname" $fullname "domain" $domain.name "kind" .)) }}
+{{- if not (hasKey $seen $ref) }}
+{{- $refs = append $refs $ref }}
+{{- $_ := set $seen $ref true }}
+{{- end }}
 {{- end }}
 {{- $_ := set $annotations "traefik.ingress.kubernetes.io/router.middlewares" (join "," $refs) }}
 {{- end }}
