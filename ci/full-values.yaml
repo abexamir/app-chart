@@ -75,6 +75,8 @@ domains:
     path: /api
     tls: false
     portName: grpc
+    middlewares:
+      compress: {}
     annotations:
       nginx.ingress.kubernetes.io/rewrite-target: /
   # No secretName: exercises the auto-generated tlsSecretName() path.
@@ -108,6 +110,10 @@ domains:
         realm: admin-area
         removeHeader: true
         headerField: X-Authenticated-User
+      compress:
+        excludedContentTypes:
+          - text/event-stream
+        minResponseBodyBytes: 0
       headers:
         customRequestHeaders:
           X-Forwarded-Proto: https

@@ -81,9 +81,13 @@ domains: []
 #     # middlewares: renders Traefik Middleware CRs (traefik.io/v1alpha1 by default — see
 #     # middlewareApiVersion below) chained onto this domain's Ingress via the
 #     # traefik.ingress.kubernetes.io/router.middlewares annotation, in the fixed order
-#     # ipWhiteList -> rateLimit -> forwardAuth -> basicAuth -> headers. Requires a Traefik
+#     # ipWhiteList -> rateLimit -> forwardAuth -> basicAuth -> headers -> compress. Requires a Traefik
 #     # ingress controller; has no effect otherwise.
 #     middlewares:
+#       # Empty object enables compression with Traefik defaults.
+#       compress: {}
+#       # Optional: minResponseBodyBytes: 0 (non-negative; explicit zero is preserved).
+#       # Optional: excludedContentTypes OR includedContentTypes, never both.
 #       ipWhiteList:
 #         sourceRange:
 #           - 10.0.0.0/8

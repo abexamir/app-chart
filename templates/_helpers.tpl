@@ -93,7 +93,7 @@ removed in v3) only understands "ipWhiteList".
 {{/*
 Ordered list of enabled middleware kinds for a domain. Mirrors enabledMiddlewareKinds():
 ipallow and ratelimit filter cheaply before the two auth mechanisms run, headers last since
-it only decorates the response rather than gating the request. Call with the domain value.
+it only decorates the response, then compress. Call with the domain value.
 */}}
 {{- define "app-chart.enabledMiddlewareKinds" -}}
 {{- $domain := . -}}
@@ -104,6 +104,7 @@ it only decorates the response rather than gating the request. Call with the dom
 {{- if $domain.middlewares.forwardAuth -}}{{- $kinds = append $kinds "forwardauth" -}}{{- end -}}
 {{- if $domain.middlewares.basicAuth -}}{{- $kinds = append $kinds "basicauth" -}}{{- end -}}
 {{- if $domain.middlewares.headers -}}{{- $kinds = append $kinds "headers" -}}{{- end -}}
+{{- if and (hasKey $domain.middlewares "compress") (ne $domain.middlewares.compress nil) -}}{{- $kinds = append $kinds "compress" -}}{{- end -}}
 {{- end -}}
 {{- toYaml $kinds -}}
 {{- end -}}
@@ -167,6 +168,13 @@ to resolve .Values.middlewareApiVersion for the ipallow kind's spec key.
 {{- if $h.accessControlAllowHeaders -}}{{- $_ := set $body "accessControlAllowHeaders" $h.accessControlAllowHeaders -}}{{- end -}}
 {{- if $h.accessControlAllowCredentials -}}{{- $_ := set $body "accessControlAllowCredentials" true -}}{{- end -}}
 {{- $_ := set $spec "headers" $body -}}
+{{- else if eq $kind "compress" -}}
+{{- $compress := $mw.compress -}}
+{{- $body := dict -}}
+{{- if $compress.excludedContentTypes -}}{{- $_ := set $body "excludedContentTypes" $compress.excludedContentTypes -}}{{- end -}}
+{{- if $compress.includedContentTypes -}}{{- $_ := set $body "includedContentTypes" $compress.includedContentTypes -}}{{- end -}}
+{{- if hasKey $compress "minResponseBodyBytes" -}}{{- $_ := set $body "minResponseBodyBytes" $compress.minResponseBodyBytes -}}{{- end -}}
+{{- $_ := set $spec "compress" $body -}}
 {{- end -}}
 {{- toYaml $spec -}}
 {{- end -}}
@@ -204,6 +212,17 @@ structural invariants enforced by the Go API types. Rendered (and thus evaluated
 deployment.yaml, which every install renders.
 */}}
 {{- define "app-chart.validate" -}}
+{{- range .Values.domains -}}
+{{- if and .middlewares (hasKey .middlewares "compress") (ne .middlewares.compress nil) -}}
+{{- $compress := .middlewares.compress -}}
+{{- if and (hasKey $compress "includedContentTypes") (hasKey $compress "excludedContentTypes") -}}
+{{- fail "compress: includedContentTypes and excludedContentTypes are mutually exclusive" -}}
+{{- end -}}
+{{- if and (hasKey $compress "minResponseBodyBytes") (lt (float64 $compress.minResponseBodyBytes) 0.0) -}}
+{{- fail "compress.minResponseBodyBytes must be non-negative" -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- if not .Values.containers -}}
 {{- fail "containers: at least one container is required" -}}
 {{- end -}}
