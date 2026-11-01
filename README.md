@@ -53,3 +53,10 @@ A few operator behaviors have no faithful equivalent in a stateless template ren
   uninstalling one release doesn't delete a store other apps share.
 
 See `AGENTS.md` for the field-parity contract this chart maintains with app-operator.
+
+### Response compression
+
+Set `domains[].middlewares.compress: {}` to enable Traefik compression with its defaults.
+Optional `excludedContentTypes` or `includedContentTypes` (mutually exclusive) filter content
+types. `minResponseBodyBytes` accepts a non-negative integer, including explicit zero; omitting
+it retains Traefik's default. Compression follows headers in the middleware chain.
