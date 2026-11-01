@@ -78,6 +78,7 @@ domains:
     middlewares:
       compress: {}
     annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: " default-redirect@kubernetescrd, ,default-redirect@kubernetescrd "
       nginx.ingress.kubernetes.io/rewrite-target: /
   # No secretName: exercises the auto-generated tlsSecretName() path.
   - name: admin.example.com

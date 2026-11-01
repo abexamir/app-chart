@@ -60,3 +60,7 @@ Set `domains[].middlewares.compress: {}` to enable Traefik compression with its 
 Optional `excludedContentTypes` or `includedContentTypes` (mutually exclusive) filter content
 types. `minResponseBodyBytes` accepts a non-negative integer, including explicit zero; omitting
 it retains Traefik's default. Compression follows headers in the middleware chain.
+
+Explicit middleware references in domain annotations (or the global `ingressAnnotations`
+fallback) run before native middleware. A domain annotation replaces the global chain for that
+domain. References are trimmed and deduplicated while preserving their first occurrence.
