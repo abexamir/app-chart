@@ -84,6 +84,11 @@ domains: []
 #     # ipWhiteList -> rateLimit -> forwardAuth -> basicAuth -> headers -> compress. Requires a Traefik
 #     # ingress controller; has no effect otherwise.
 #     middlewares:
+#       # Explicit scheme redirection also works on tls: false hosts.
+#       redirectScheme:
+#         scheme: https
+#         permanent: true
+#         # port: "8443"  # optional; must be a string
 #       # Empty object enables compression with Traefik defaults.
 #       compress: {}
 #       # Optional: minResponseBodyBytes: 0 (non-negative; explicit zero is preserved).

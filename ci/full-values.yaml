@@ -135,6 +135,17 @@ domains:
           - Authorization
         accessControlAllowCredentials: true
 
+  - name: redirect-only.example.com
+    path: /
+    tls: false
+    portName: http
+    middlewares:
+      redirectScheme:
+        scheme: https
+        permanent: true
+        port: "8443"
+      compress: {}
+
 middlewareApiVersion: traefik.io/v1alpha1
 ingressClass: nginx
 ingressAnnotations:
